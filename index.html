@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go URL Shortener</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        input[type="url"] {
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            display: none; /* Hidden until we have a result */
+            word-wrap: break-word;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔗 URL Shortener</h2>
+    <form id="shortenForm">
+        <input type="url" id="longUrl" placeholder="Paste your long link here..." required>
+        <button type="submit">Shorten</button>
+    </form>
+
+    <div id="result">
+        <p>Your short link:</p>
+        <a id="shortLink" href="#" target="_blank"></a> 
+    </div>
+</div>
+
+<script>
+    document.getElementById('shortenForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); // Stop the page from reloading
+        
+        const urlInput = document.getElementById('longUrl').value;
+        const resultDiv = document.getElementById('result');
+        const shortLinkA = document.getElementById('shortLink');
+
+        try {
+            // Call your Go API!
+            const response = await fetch('/shorten', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: urlInput })
+            });
+
+            if (!response.ok) {
+                if (response.status === 429) {
+                    alert("Too many requests! Please slow down.");
+                } else {
+                    alert("Something went wrong on the server.");
+                }
+                return;
+            }
+
+            const data = await response.json();
+            
+            const finalUrl = data.short_url;
+            
+            // Update the UI
+            shortLinkA.href = finalUrl;
+            shortLinkA.textContent = finalUrl;
+            resultDiv.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert("Failed to connect to the server.");
+        }
+    });
+</script>
+
+</body>
+</html>
