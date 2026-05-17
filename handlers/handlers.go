@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type URLHandler struct {
@@ -15,6 +17,7 @@ type URLHandler struct {
 	// Tip: It's often safer to inject a BaseURL string here
 	// (e.g., "https://sho.rt") rather than relying on r.Host.
 	// BaseURL string
+	RDB *redis.Client
 }
 
 type ShortenURLRequest struct {
@@ -111,14 +114,20 @@ func (h *URLHandler) RedirectURLHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	query := `SELECT url FROM urls WHERE short_code = $1`
-	var longURL string
-	err := h.DB.QueryRow(r.Context(), query, shortCode).Scan(&longURL)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			http.Error(w, "Short code not found", http.StatusNotFound)
+	longURL, err := h.RDB.Get(r.Context(), shortCode).Result()
+	if err == redis.Nil {
+		query := `SELECT url FROM urls WHERE short_code = $1`
+		err := h.DB.QueryRow(r.Context(), query, shortCode).Scan(&longURL)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				http.Error(w, "Short code not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		h.RDB.Set(r.Context(), shortCode, longURL, 24*time.Hour)
+	} else if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
