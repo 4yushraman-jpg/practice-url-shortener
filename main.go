@@ -44,6 +44,10 @@ func main() {
 	// 2. Build the Cheap Limiter (1000 requests / 1 min / "redirect" prefix)
 	cheapMiddleware := rateLimiter.RateLimit(1000, 1*time.Minute, "ratelimit:redirect")
 
+	http.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
+
 	// Apply them to your routes!
 	http.HandleFunc("/shorten", expensiveMiddleware(urlHandler.ShortenURLHandler))
 	http.HandleFunc("/", cheapMiddleware(urlHandler.RedirectURLHandler))
